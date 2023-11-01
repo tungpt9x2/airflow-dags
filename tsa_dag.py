@@ -24,7 +24,7 @@ dag = DAG(
 
 def queryExamPlanData():
     sql_query = '''
-        I SELECT exam_plan.*, billing.invoice_total_amount FROM public.exam_plan JOIN orders.billing ON billing.id = exam_plan.billing_id WHERE exam_id = 38
+        SELECT exam_plan.*, billing.invoice_total_amount FROM public.exam_plan JOIN orders.billing ON billing.id = exam_plan.billing_id WHERE exam_id = 38
         '''
     pg_hook = PostgresHook(postgres_conn_id="student-portal-db")
     return pg_hook.get_records(sql_query)
