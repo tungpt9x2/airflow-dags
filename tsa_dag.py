@@ -1,11 +1,12 @@
 from airflow.models.dag import DAG
-from airflow.providers.postgres.operators.postgres import PostgresOperator
+from airflow.models import Variable
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
 
 import pandas as pd
 import json
+from datetime import datetime
 
 args = {
     'owner': 'airflow',
@@ -19,10 +20,7 @@ dag = DAG(
     schedule_interval='@daily'  # to make this workflow happen every day
 )
 
-
 def loadExamPlanData():
-    from datetime import datetime
-
     sql_query = '''
         SELECT
             exam_plan.billing_id,
@@ -161,10 +159,28 @@ def processExamPlanData(ti):
         "total_amount": int(total_amount),
         "total_paid_registered": int(total_paid_registered),
         "total_paid_amount": int(total_paid_amount),
-        "register_by_province": register_by_province.to_json(orient="records")
+        "register_by_province": register_by_province.to_json(orient="records"),
+        "last_updated_at": int(round(datetime.now().timestamp()))
     }
 
     return result
+
+def saveReport(ti):
+    import redis
+
+    report_data = ti.xcom_pull(task_ids='process_exam_plan_data')
+
+    redisConnection = redis.StrictRedis(
+            host=Variable.get("REDIS_HOST"),
+            port=Variable.get("REDIS_PORT"),
+            db=0,
+            password=Variable.get("REDIS_PASSWORD"),
+        )
+    
+
+    redisConnection.set(
+        "AuthoringCache:TSA_REGISTER_REPORT", json.dumps(report_data)
+    )
 
 
 with dag:
@@ -198,8 +214,15 @@ with dag:
         python_callable=processExamPlanData,
     )
 
+    save_report = PythonOperator(
+        task_id='save_report',
+        python_callable=saveReport,
+    )
+
     [load_exam_plan_data, load_school_data,
-        load_province_data] >> get_profile_id >> load_profile_data >> process_exam_plan_data
+        load_province_data] >> get_profile_id >> load_profile_data >> process_exam_plan_data >> save_report
+
+  
 
 if __name__ == "__main__":
     dag.test()
