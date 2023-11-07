@@ -55,9 +55,10 @@ def loadProvinceData():
 
 
 def loadSchoolData():
-    from urllib.request import urlopen
-    data = urlopen("https://xcbt-dev-storage.apps.prod01.fis-cloud.fpt.com/xcbt-files/tmp/schools.json").read().decode('utf-8')
-    return json.load(data)
+    import requests
+
+    r = requests.get('https://xcbt-dev-storage.apps.prod01.fis-cloud.fpt.com/xcbt-files/tmp/schools.json')
+    return r.json()
 
 
 # Map school
