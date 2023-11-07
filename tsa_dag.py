@@ -56,7 +56,7 @@ def loadProvinceData():
 
 def loadSchoolData():
     try:
-        with open("./schools.json", 'r') as json_file:
+        with open("./../schools.json", 'r') as json_file:
             data = json.load(json_file)
         return data
     except FileNotFoundError:
