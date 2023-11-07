@@ -14,7 +14,7 @@ timezone = pytz.timezone('Asia/Bangkok')
 
 args = {
     'owner': 'airflow',
-    'start_date': datetime.now(),
+    'start_date': datetime.now() - timedelta(minutes=10),
     'retries': 1,
 }
 
