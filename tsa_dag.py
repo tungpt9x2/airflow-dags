@@ -55,12 +55,9 @@ def loadProvinceData():
 
 
 def loadSchoolData():
-    try:
-        with open("./../schools.json", 'r') as json_file:
-            data = json.load(json_file)
-        return data
-    except FileNotFoundError:
-        raise FileNotFoundError(f"JSON file not found at dags/schools.json")
+    from urllib.request import urlopen
+    data = urlopen("https://xcbt-dev-storage.apps.prod01.fis-cloud.fpt.com/xcbt-files/tmp/schools.json").read().decode('utf-8')
+    return json.load(data)
 
 
 # Map school
