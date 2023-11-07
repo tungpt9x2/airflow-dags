@@ -3,21 +3,26 @@ from airflow.models import Variable
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
+from airflow.utils.dates import timedelta
 
 import pandas as pd
 import json
 from datetime import datetime
+import pytz
+
+timezone = pytz.timezone('Asia/Bangkok')
 
 args = {
     'owner': 'airflow',
-    'start_date': days_ago(1)  # make start date in the past
+    'start_date': datetime.now(),
+    'retries': 1,
 }
 
 # defining the dag object
 dag = DAG(
     dag_id='tsa-dag',
     default_args=args,
-    schedule_interval='@daily'  # to make this workflow happen every day
+    schedule_interval=timedelta(minutes=10) # to make this workflow happen every 10 minutes
 )
 
 def loadExamPlanData():
@@ -74,8 +79,6 @@ def schoolMap(hk1_10, hk2_10, hk1_11, hk2_11, hk1_12, hk2_12):
         return hk1_10
 
 # Map province
-
-
 def provinceMap(hk1_10, hk2_10, hk1_11, hk2_11, hk1_12, hk2_12, province):
     if (pd.isna(hk1_12) & pd.isna(hk2_12) & pd.isna(hk1_11) & pd.isna(hk2_11) & pd.isna(hk1_10) & pd.isna(hk2_10)):
         return province
@@ -102,12 +105,22 @@ def loadProfileData(ti):
 
     return data
 
+def loadTestSiteData(ti):
+    sql_query = '''
+        SELECT name, count_test_taker, max_test_taker FROM test_site WHERE exam_id = 38 ORDER BY name ASC
+        '''
+    pg_hook = PostgresHook(postgres_conn_id="student-portal-db")
+    data = pg_hook.get_records(sql_query)
+
+    return data
+
 
 def processExamPlanData(ti):
     exam_plans = ti.xcom_pull(task_ids='load_exam_plan_data')
     schools = ti.xcom_pull(task_ids='load_school_data')
     provinces = ti.xcom_pull(task_ids='load_province_data')
     profiles = ti.xcom_pull(task_ids='load_profile_data')
+    test_sites = ti.xcom_pull(task_ids='load_test_site_data')
 
     exam_plan_df = pd.DataFrame(data=exam_plans, columns=[
         "billing_id", "profile_id", "test_site_id", "exam_id", "status", "invoice_total_amount"])
@@ -119,6 +132,9 @@ def processExamPlanData(ti):
         "id", "data"])
 
     school_df = pd.DataFrame(data=schools)
+
+    test_site_df = pd.DataFrame(data=test_sites, columns=[
+        "name", "count_test_taker", "max_test_taker"])
 
     exam_plan_extra_df = pd.concat(
         [exam_plan_df, profile_df['data'].apply(pd.Series)], axis=1)
@@ -141,7 +157,9 @@ def processExamPlanData(ti):
         '') + exam_plan_extra_df['province_name2'].fillna('')
 
     register_by_province = exam_plan_extra_df.groupby(
-        'province_name').size().reset_index(name='count')
+        ['province_name', 'status']).size().reset_index(name='count')
+    register_by_province['status'] = register_by_province['status'].map({0: 'Chưa thanh toán', 1: 'Đã thanh toán'})
+    register_by_province = register_by_province.sort_values(['count'], ascending=False)
 
     # Tổng số đăng ký
     total_registered = exam_plan_extra_df.shape[0]
@@ -160,14 +178,17 @@ def processExamPlanData(ti):
         "total_paid_registered": int(total_paid_registered),
         "total_paid_amount": int(total_paid_amount),
         "register_by_province": register_by_province.to_json(orient="records"),
-        "last_updated_at": int(round(datetime.now().timestamp()))
+        "resgister_by_test_site": test_site_df.to_json(orient="records"),
+        "last_updated_at": int(round(datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(timezone).timestamp()))
     }
+
+    print(datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(timezone))
+    print(int(round(datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(timezone).timestamp())))
 
     return result
 
 def saveReport(ti):
     import redis
-
     report_data = ti.xcom_pull(task_ids='process_exam_plan_data')
 
     redisConnection = redis.StrictRedis(
@@ -176,7 +197,6 @@ def saveReport(ti):
             db=0,
             password=Variable.get("REDIS_PASSWORD"),
         )
-    
 
     redisConnection.set(
         "AuthoringCache:TSA_REGISTER_REPORT", json.dumps(report_data)
@@ -209,6 +229,11 @@ with dag:
         python_callable=loadProfileData,
     )
 
+    load_test_site_data = PythonOperator(
+        task_id='load_test_site_data',
+        python_callable=loadTestSiteData,
+    )
+
     process_exam_plan_data = PythonOperator(
         task_id='process_exam_plan_data',
         python_callable=processExamPlanData,
@@ -220,9 +245,8 @@ with dag:
     )
 
     [load_exam_plan_data, load_school_data,
-        load_province_data] >> get_profile_id >> load_profile_data >> process_exam_plan_data >> save_report
+        load_province_data] >> get_profile_id >> [load_profile_data, load_test_site_data] >> process_exam_plan_data >> save_report
 
-  
 
 if __name__ == "__main__":
     dag.test()
