@@ -2,7 +2,12 @@ from airflow.models.dag import DAG
 from airflow.utils.dates import timedelta
 from airflow.operators.python_operator import PythonOperator
 from airflow.contrib.hooks.redis_hook import RedisHook
+from airflow.hooks.S3_hook import S3Hook
+
 from datetime import datetime
+import pandas as pd
+import json
+from io import BytesIO
 
 
 args = {
@@ -29,7 +34,24 @@ def getExamStatistic(ti):
     conn = redis_hook.get_conn()
     data = conn.lrange("AuthoringCache:EXAM_STATISTICS:28052024", 0 , data_len - 1)
 
-    print(data)
+    final_data = []
+    for x in data:
+        final_data.append(json.loads(x))
+
+    final_data_df = pd.DataFrame(data=final_data)
+    csv_buffer = BytesIO()
+    final_data_df.to_csv(csv_buffer, header=True, index=False, encoding='utf-8', date_format='%Y-%m-%dT%H:%M:%S.%fZ')
+
+    s3_hook = S3Hook(aws_conn_id='minio-admin')
+    bucket_name = "airflow-logs"    
+    s3_hook.load_bytes(csv_buffer.getvalue(), f"exam_statistics_{datetime.now()}.csv", bucket_name)
+
+# def list_keys():
+#     hook = S3Hook(aws_conn_id='minio-admin')
+#     bucket = "airflow-logs"
+#     keys = hook.list_keys(bucket, prefix="")
+#     for key in keys:
+#         print(f"- s3://{bucket}/{key}")
 
 with dag:
     count_data = PythonOperator(
@@ -37,12 +59,18 @@ with dag:
             python_callable=countExamStatistic,
     )
 
-    get_data = PythonOperator(
-            task_id='get_data',
+    process_data = PythonOperator(
+            task_id='process_data',
             python_callable=getExamStatistic,
     )
 
-    count_data >> get_data
+    # list_task = PythonOperator(
+    #     task_id="list_keys",
+    #     python_callable=list_keys,
+    # )
+
+    count_data >> process_data
+    # list_task
 
 if __name__ == "__main__":
     dag.test()
