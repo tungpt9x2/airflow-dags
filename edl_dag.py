@@ -22,13 +22,13 @@ def loadExamStatistic():
     data = redis_hook.llen("AuthoringCache:EXAM_STATISTICS:28052024")
     print(data)
     return data
+with dag:
+    load_data = PythonOperator(
+            task_id='load_data',
+            python_callable=loadExamStatistic,
+    )
 
-load_data = PythonOperator(
-        task_id='load_data',
-        python_callable=loadExamStatistic,
-)
-
-load_data
+    load_data
 
 if __name__ == "__main__":
     dag.test()
