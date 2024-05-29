@@ -19,7 +19,8 @@ dag = DAG(
 
 def loadExamStatistic():
     redis_hook = RedisHook(redis_conn_id="authoring-redis")
-    data = redis_hook.llen("AuthoringCache:EXAM_STATISTICS:28052024")
+    conn = redis_hook.get_conn()
+    data = conn.llen("AuthoringCache:EXAM_STATISTICS:28052024")
     print(data)
     return data
 with dag:
