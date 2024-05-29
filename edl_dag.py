@@ -1,7 +1,7 @@
 from airflow.models.dag import DAG
 from airflow.utils.dates import timedelta
-from airflow.providers.redis.operators.redis_publish import RedisPublishOperator
-from airflow.providers.redis.sensors.redis_key import RedisKeySensor
+from airflow.operators.python_operator import PythonOperator
+from airflow.contrib.hooks.redis_hook.RedisHook import RedisHook
 from datetime import datetime
 
 
@@ -17,17 +17,19 @@ dag = DAG(
     schedule_interval=timedelta(minutes=10) # to make this workflow happen every 10 minutes
 )
 
-key_sensor_task = RedisKeySensor(
-        task_id="key_sensor_task",
-        redis_conn_id="authoring-redis",
-        key="AuthoringCache:EXAM_STATISTICS:28052024",
-        dag=dag,
-        timeout=600,
-        poke_interval=30,
-    )
+def loadExamStatistic():
+    redis_hook = RedisHook(redis_conn_id="authoring-redis")
+    data = redis_hook.llen("AuthoringCache:EXAM_STATISTICS:28052024")
+    print(data)
+    return data
+
+load_data = PythonOperator(
+        task_id='load_data',
+        python_callable=loadExamStatistic,
+)
 
 
-key_sensor_task
+load_data
 
 if __name__ == "__main__":
     dag.test()
