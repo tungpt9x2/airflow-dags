@@ -28,7 +28,8 @@ def getExamStatistic(ti):
     redis_hook = RedisHook(redis_conn_id="authoring-redis")
     conn = redis_hook.get_conn()
     data = conn.lrange("AuthoringCache:EXAM_STATISTICS:28052024", 0 , data_len - 1)
-    return data
+
+    print(data)
 
 with dag:
     count_data = PythonOperator(
