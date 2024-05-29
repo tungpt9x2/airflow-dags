@@ -2,6 +2,7 @@ from airflow.models.dag import DAG
 from airflow.utils.dates import timedelta
 from airflow.providers.redis.operators.redis_publish import RedisPublishOperator
 from airflow.providers.redis.sensors.redis_key import RedisKeySensor
+from datetime import datetime
 
 
 args = {
@@ -9,7 +10,6 @@ args = {
     'start_date': datetime.now() - timedelta(minutes=10),
     'retries': 1,
 }
-
 
 dag = DAG(
     dag_id='edl-dag',
