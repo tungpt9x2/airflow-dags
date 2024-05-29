@@ -1,7 +1,7 @@
 from airflow.models.dag import DAG
 from airflow.utils.dates import timedelta
 from airflow.operators.python_operator import PythonOperator
-from airflow.contrib.hooks.redis_hook.RedisHook import RedisHook
+from airflow.contrib.hooks.redis_hook import RedisHook
 from datetime import datetime
 
 
@@ -27,7 +27,6 @@ load_data = PythonOperator(
         task_id='load_data',
         python_callable=loadExamStatistic,
 )
-
 
 load_data
 
