@@ -44,7 +44,7 @@ def getExamStatistic(ti):
 
     s3_hook = S3Hook(aws_conn_id='minio-admin')
     bucket_name = "airflow-logs"    
-    s3_hook.load_bytes(csv_buffer.getvalue(), f"exam_statistics_{datetime.now()}.csv", bucket_name)
+    s3_hook.load_bytes(csv_buffer.getvalue(), f"/test/exam_statistics_{datetime.now()}.csv", bucket_name)
 
 # def list_keys():
 #     hook = S3Hook(aws_conn_id='minio-admin')
