@@ -12,27 +12,27 @@ from io import BytesIO
 
 args = {
     'owner': 'airflow',
-    'start_date': datetime.now() - timedelta(minutes=60),
+    'start_date': datetime.now() - timedelta(minutes=240),
     'retries': 1,
 }
 
 dag = DAG(
     dag_id='edl-dag',
     default_args=args,
-    schedule_interval=timedelta(minutes=60) # to make this workflow happen every 10 minutes
+    schedule_interval=timedelta(minutes=240) # to make this workflow happen every 4 hours
 )
 
 def countExamStatistic():
     redis_hook = RedisHook(redis_conn_id="authoring-redis")
     conn = redis_hook.get_conn()
-    data_len = conn.llen("AuthoringCache:EXAM_STATISTICS:28052024")
+    data_len = conn.llen("AuthoringCache:EXAM_STATISTICS:"+datetime.now().strftime("%d%m%Y"))
     return data_len
 
 def getExamStatistic(ti):
     data_len = ti.xcom_pull(task_ids='count_data')
     redis_hook = RedisHook(redis_conn_id="authoring-redis")
     conn = redis_hook.get_conn()
-    data = conn.lrange("AuthoringCache:EXAM_STATISTICS:28052024", 0 , data_len - 1)
+    data = conn.lrange("AuthoringCache:EXAM_STATISTICS:" + datetime.now().strftime("%d%m%Y"), 0 , data_len - 1)
 
     final_data = []
     for x in data:
