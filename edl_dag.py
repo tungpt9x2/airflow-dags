@@ -43,8 +43,9 @@ def getExamStatistic(ti):
     final_data_df.to_csv(csv_buffer, header=True, index=False, encoding='utf-8', date_format='%Y-%m-%dT%H:%M:%S.%fZ')
 
     s3_hook = S3Hook(aws_conn_id='minio-admin')
-    bucket_name = "airflow-logs"    
-    s3_hook.load_bytes(csv_buffer.getvalue(), f"/test/exam_statistics_{datetime.now()}.csv", bucket_name)
+    bucket_name = "airflow-logs"  
+    now = datetime.now()  
+    s3_hook.load_bytes(csv_buffer.getvalue(), f"/{now.strftime("%Y")}/{now.strftime("%m")}/{now.strftime("%d")}/exam_statistics_{datetime.now()}.csv", bucket_name)
 
 # def list_keys():
 #     hook = S3Hook(aws_conn_id='minio-admin')
