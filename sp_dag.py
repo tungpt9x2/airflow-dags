@@ -26,7 +26,11 @@ def excuteReport():
     cursor = conn.cursor()
 
     cursor.execute("CALL report.sp_report_update_result();")
+    cursor.execute("CALL report.sp_calculate_report_test_taker_group();")
+    cursor.execute("CALL report.sp_report_update_result();")
+    cursor.execute(" CALL report.sp_calculate_report_class();")
 
+    cursor.commit()
     cursor.close()
     conn.close()
 
