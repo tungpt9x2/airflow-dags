@@ -20,28 +20,50 @@ dag = DAG(
 )
 
 
-def excuteReport():
+def excuteReportP3():
     pg_hook = PostgresHook(postgres_conn_id="authoring-p3-db")
     conn = pg_hook.get_conn()
     cursor = conn.cursor()
+    try:
+        cursor.execute("CALL report.sp_report_update_result();")
+        cursor.execute("CALL report.sp_calculate_report_test_taker_group();")
+        cursor.execute("CALL report.sp_report_update_result();")
+        cursor.execute("CALL report.sp_calculate_report_class();")
+    except:
+        cursor.execute("ROLLBACK")
+    cursor.close()
+    conn.commit()
+    conn.close()
 
-    cursor.execute("CALL report.sp_report_update_result();")
-    cursor.execute("CALL report.sp_calculate_report_test_taker_group();")
-    cursor.execute("CALL report.sp_report_update_result();")
-    cursor.execute(" CALL report.sp_calculate_report_class();")
 
+def excuteReportP1():
+    pg_hook = PostgresHook(postgres_conn_id="authoring-p1-db")
+    conn = pg_hook.get_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("CALL report.sp_report_update_result();")
+        cursor.execute("CALL report.sp_calculate_report_test_taker_group();")
+        cursor.execute("CALL report.sp_report_update_result();")
+        cursor.execute("CALL report.sp_calculate_report_class();")
+    except:
+        cursor.execute("ROLLBACK")
     cursor.close()
     conn.commit()
     conn.close()
 
 
 with dag:
-    excute_report_task = PythonOperator(
-        task_id='excute_report_task',
-        python_callable=excuteReport,
+    excute_report_p3 = PythonOperator(
+        task_id='excute_report_p3',
+        python_callable=excuteReportP3,
     )
 
-    excute_report_task
+    excute_report_p1 = PythonOperator(
+        task_id='excute_report_p1',
+        python_callable=excuteReportP1,
+    )
+
+    excute_report_p3 >> excute_report_p1
 
 
 if __name__ == "__main__":
