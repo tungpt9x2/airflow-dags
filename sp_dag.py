@@ -30,8 +30,8 @@ def excuteReport():
     cursor.execute("CALL report.sp_report_update_result();")
     cursor.execute(" CALL report.sp_calculate_report_class();")
 
-    cursor.commit()
     cursor.close()
+    conn.commit()
     conn.close()
 
 
