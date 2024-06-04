@@ -22,9 +22,13 @@ dag = DAG(
 
 def excuteReport():
     pg_hook = PostgresHook(postgres_conn_id="authoring-p3-db")
-    cursor = pg_hook.get_conn().cursor()
+    conn = pg_hook.get_conn()
+    cursor = conn.cursor()
 
-    cursor.excute("CALL report.sp_report_update_result();")
+    cursor.execute("CALL report.sp_report_update_result();")
+
+    cursor.close()
+    conn.close()
 
 
 with dag:
